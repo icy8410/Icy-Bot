@@ -15,7 +15,6 @@ bot = commands.Bot(command_prefix='$', intents=intents)
 CASINO_ROLE_ID = 1445383774295560242
 ALLOWED_CHANNELS = {1445140349952720989, 1445100560264204319}
 COOLDOWN_SECONDS = 120
-
 THUMBNAIL_GIF = "https://cdn.discordapp.com/icons/1431291490596032636/a_fd742a2cb0763fa6577db2095b21d21e.gif?size=256"
 
 class TakeTicket(discord.ui.View):
@@ -66,12 +65,13 @@ async def casino_help_error(ctx, error):
 @bot.event
 async def on_ready():
     print(f'הבוט מחובר ועובד 24/7! שם: {bot.user}')
-    bot.add_view(TakeTicket())  # חובה שזה יהיה כאן!
+    bot.add_view(TakeTicket())
 
-    # ─── שרת קטן להשארת Replit חי 24/7 ───
+    # ─── שרת קטן שמקבל גם GET וגם HEAD (כדי ש-UptimeRobot לא יקבל 405) ───
     app = FastAPI()
 
     @app.get("/")
+    @app.head("/")  # ← זה מה שפותר את ה-405!
     async def root():
         return {"message": "Bot is alive! Casino Help Bot is running 24/7!"}
 
