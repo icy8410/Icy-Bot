@@ -172,5 +172,15 @@ async def on_ready():
         uvicorn.run(app, host="0.0.0.0", port=8080)
     Thread(target=run, daemon=True).start()
 
+# ─── מונע שינה על Render – 100% עובד גם עם UptimeRobot ───
+import threading
+
+def keep_awake():
+    while True:
+        threading.Event().wait(240)  # כל 4 דקות
+        print("Keep-awake ping – הבוט עדיין ער!")
+
+threading.Thread(target=keep_awake, daemon=True).start()
+
 # ריצה
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
