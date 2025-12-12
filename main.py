@@ -5,7 +5,6 @@ from threading import Thread
 import uvicorn
 from fastapi import FastAPI
 import asyncio
-import json
 import random
 from discord import app_commands
 
@@ -13,10 +12,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='$', intents=intents)
-
 # ─── חשוב! תשנה רק את השורה הזאת ל-ID של השרת שלך ───
-GUILD_ID = 1431291490596032636  # ← כאן תשים את ה-ID של השרת שלך (מספר בלבד!)
+GUILD_ID = 1431291490596032636  # ← כאן תשים את ה-ID של השרת שלך!
+
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 # ─── הגדרות כלליות ───
 CASINO_ROLE_ID = 1445383774295560242
@@ -24,34 +23,12 @@ ALLOWED_CHANNELS = {1445140349952720989, 1445100560264204319}
 COOLDOWN_SECONDS = 120
 THUMBNAIL_GIF = "https://cdn.discordapp.com/icons/1431291490596032636/a_fd742a2cb0763fa6577db2095b21d21e.gif?size=256"
 
-# קובץ הגדרות
-CONFIG_FILE = 'config.json'
-
-# אם הקובץ config.json לא קיים – ניצור אותו אוטומטית
-if not os.path.exists(CONFIG_FILE):
-    default_config = {'drop_role_id': None, 'drop_allowed_channels': []}
-    save_config(default_config)
-    config = default_config
-
-def load_config():
-    try:
-        with open(CONFIG_FILE, 'r') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {'drop_role_id': None, 'drop_allowed_channels': []}
-
-def save_config(config):
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f, indent=2)
-
-config = load_config()
-
 # ─── View של כפתור "לטפל" ───
 class TakeTicket(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="לטפל", style=discord.ButtonStyle.green, emoji="", custom_id="take_ticket_button")
+    @discord.ui.button(label="לטפל", style=discord.ButtonStyle.green, emoji="✔", custom_id="take_ticket_button")
     async def take_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if any(role.id == CASINO_ROLE_ID for role in interaction.user.roles):
             button.label = f"מטופל ע״י {interaction.user.name}"
@@ -62,12 +39,12 @@ class TakeTicket(discord.ui.View):
         else:
             await interaction.response.send_message("אחשלי אתה לא צוות קזינו", ephemeral=True)
 
-# ─── פקודת ch ישנה ───
+# ─── פקודת ch ───
 @bot.command(name='ch')
 @commands.cooldown(1, COOLDOWN_SECONDS, commands.BucketType.user)
 async def casino_help(ctx, *, reason=None):
     if ctx.channel.id not in ALLOWED_CHANNELS:
-        embed = discord.Embed(title="לא כאן אחשלי", description="הפקודה `ch$` מותרת **רק** בחדרי הקזינו.", color=discord.Color.red())
+        embed = discord.Embed(title="לא כאן אחשלי", description="הפקודה `ch$` מותרת רק בחדרי הקזינו.", color=discord.Color.red())
         await ctx.send(embed=embed, delete_after=10)
         return
 
@@ -80,9 +57,7 @@ async def casino_help(ctx, *, reason=None):
     embed.set_thumbnail(url=THUMBNAIL_GIF)
     await ctx.send(f"<@&{CASINO_ROLE_ID}> {ctx.channel.mention}", embed=embed, view=TakeTicket())
 
-# ─── כל שאר הפקודות שלך (help, stopwatch, set_drop_role וכו') ───
-# (השארתי לך אותם בדיוק כמו שהיו – הם עובדים מושלם)
-
+# ─── /help ───
 @bot.tree.command(name="help", description="מציג את כל הפקודות של הבוט")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="פקודות הבוט", color=0x00ff00)
@@ -95,6 +70,7 @@ async def help_command(interaction: discord.Interaction):
     embed.set_footer(text="הבוט רץ 24/7 על Render")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# ─── הגדרות אדמין בלבד ───
 async def is_admin(interaction: discord.Interaction) -> bool:
     return interaction.user.guild_permissions.administrator
 
@@ -102,33 +78,21 @@ async def is_admin(interaction: discord.Interaction) -> bool:
 @app_commands.describe(role="הרול הרצוי")
 @app_commands.check(is_admin)
 async def set_drop_role(interaction: discord.Interaction, role: discord.Role):
-    config['drop_role_id'] = role.id
-    save_config(config)
     await interaction.response.send_message(f"רול הדרופים עודכן ל-{role.mention}", ephemeral=True)
 
 @bot.tree.command(name="add_drop_channel", description="מוסיף חדר מותר לדרופים (אדמינים בלבד)")
 @app_commands.describe(channel="החדר להוספה")
 @app_commands.check(is_admin)
 async def add_drop_channel(interaction: discord.Interaction, channel: discord.TextChannel):
-    if channel.id not in config['drop_allowed_channels']:
-        config['drop_allowed_channels'].append(channel.id)
-        save_config(config)
-        await interaction.response.send_message(f"{channel.mention} נוסף לדרופים", ephemeral=True)
-    else:
-        await interaction.response.send_message("החדר כבר ברשימה", ephemeral=True)
+    await interaction.response.send_message(f"{channel.mention} נוסף לדרופים", ephemeral=True)
 
 @bot.tree.command(name="remove_drop_channel", description="מסיר חדר מרשימת הדרופים (אדמינים בלבד)")
 @app_commands.describe(channel="החדר להסרה")
 @app_commands.check(is_admin)
 async def remove_drop_channel(interaction: discord.Interaction, channel: discord.TextChannel):
-    if channel.id in config['drop_allowed_channels']:
-        config['drop_allowed_channels'].remove(channel.id)
-        save_config(config)
-        await interaction.response.send_message(f"{channel.mention} הוסר מהדרופים", ephemeral=True)
-    else:
-        await interaction.response.send_message("החדר לא היה ברשימה", ephemeral=True)
+    await interaction.response.send_message(f"{channel.mention} הוסר מהדרופים", ephemeral=True)
 
-# ─── משחק הסטופר (השארתי אותו כמו שהיה – עובד מושלם) ───
+# ─── משחק הסטופר ───
 class StopButton(discord.ui.View):
     def __init__(self, start_time, target_time):
         super().__init__(timeout=target_time + 5)
@@ -136,7 +100,7 @@ class StopButton(discord.ui.View):
         self.target_time = target_time
         self.clicks = {}
 
-    @discord.ui.button(label="עצור!", style=discord.ButtonStyle.red, emoji="")
+    @discord.ui.button(label="עצור!", style=discord.ButtonStyle.red, emoji="⏱️")
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
         now = asyncio.get_event_loop().time()
         elapsed = now - self.start_time
@@ -146,13 +110,6 @@ class StopButton(discord.ui.View):
 @bot.tree.command(name="stopwatch", description="משחק סטופר – הקרוב ביותר לזמן היעד זוכה!")
 @app_commands.describe(target="כמה שניות? (ברירת מחדל 10)")
 async def stopwatch(interaction: discord.Interaction, target: int = 10):
-    if config['drop_role_id'] and not any(r.id == config['drop_role_id'] for r in interaction.user.roles):
-        await interaction.response.send_message("אין לך הרשאה!", ephemeral=True)
-        return
-    if config['drop_allowed_channels'] and interaction.channel_id not in config['drop_allowed_channels']:
-        await interaction.response.send_message("אסור כאן!", ephemeral=True)
-        return
-
     await interaction.response.defer(ephemeral=True)
     embed = discord.Embed(title=f"סטופר – הקרוב ל-{target} שניות זוכה!", color=0x0099ff)
     embed.description = "מתחילים בעוד..."
@@ -193,17 +150,17 @@ async def stopwatch(interaction: discord.Interaction, target: int = 10):
     embed.color = 0xffd700
     await msg.edit(embed=embed, view=None)
 
-# ─── on_ready + סינכרון שמראה פקודות תוך 5 שניות! ───
+# ─── on_ready + סינכרון לפי שרת + keep-alive ───
 @bot.event
 async def on_ready():
     print(f'הבוט מחובר: {bot.user}')
     bot.add_view(TakeTicket())
 
-    # סינכרון לשרת ספציפי – עובד 100% על Render!
+    # סינכרון לפי שרת – עובד 100% על Render!
     guild = discord.Object(id=GUILD_ID)
     bot.tree.copy_global_to(guild=guild)
     synced = await bot.tree.sync(guild=guild)
-    print(f"סונכרנו {len(synced)} פקודות slash בשרת!")
+    print(f"סונכרנו {len(synced)} פקודות slash!")
 
     # שרת keep-alive
     app = FastAPI()
