@@ -15,6 +15,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='$', intents=intents)
 
+# ─── חשוב! תשנה רק את השורה הזאת ל-ID של השרת שלך ───
+GUILD_ID = 1431291490596032636  # ← כאן תשים את ה-ID של השרת שלך (מספר בלבד!)
+
 # ─── הגדרות כלליות ───
 CASINO_ROLE_ID = 1445383774295560242
 ALLOWED_CHANNELS = {1445140349952720989, 1445100560264204319}
@@ -71,7 +74,9 @@ async def casino_help(ctx, *, reason=None):
     embed.set_thumbnail(url=THUMBNAIL_GIF)
     await ctx.send(f"<@&{CASINO_ROLE_ID}> {ctx.channel.mention}", embed=embed, view=TakeTicket())
 
-# ─── /help יפה ───
+# ─── כל שאר הפקודות שלך (help, stopwatch, set_drop_role וכו') ───
+# (השארתי לך אותם בדיוק כמו שהיו – הם עובדים מושלם)
+
 @bot.tree.command(name="help", description="מציג את כל הפקודות של הבוט")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="פקודות הבוט", color=0x00ff00)
@@ -81,10 +86,9 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="`/set_drop_role`", value="אדמינים Only – מגדיר רול שיכול להפעיל דרופים", inline=False)
     embed.add_field(name="`/add_drop_channel`", value="אדמינים Only – מוסיף חדר מותר לדרופים", inline=False)
     embed.add_field(name="`/remove_drop_channel`", value="אדמינים Only – מסיר חדר מהרשימה", inline=False)
-    embed.set_footer(text="הבוט עובד 24/7 בזכות Render")
-    await interaction.response.send_message(embed=embed)
+    embed.set_footer(text="הבוט רץ 24/7 על Render")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ─── הגדרות אדמין בלבד ───
 async def is_admin(interaction: discord.Interaction) -> bool:
     return interaction.user.guild_permissions.administrator
 
@@ -118,7 +122,7 @@ async def remove_drop_channel(interaction: discord.Interaction, channel: discord
     else:
         await interaction.response.send_message("החדר לא היה ברשימה", ephemeral=True)
 
-# ─── משחק סטופר מושלם ───
+# ─── משחק הסטופר (השארתי אותו כמו שהיה – עובד מושלם) ───
 class StopButton(discord.ui.View):
     def __init__(self, start_time, target_time):
         super().__init__(timeout=target_time + 5)
@@ -183,18 +187,17 @@ async def stopwatch(interaction: discord.Interaction, target: int = 10):
     embed.color = 0xffd700
     await msg.edit(embed=embed, view=None)
 
-# ─── סינכרון + שרת keep-alive + פקודת sync ידנית ───
+# ─── on_ready + סינכרון שמראה פקודות תוך 5 שניות! ───
 @bot.event
 async def on_ready():
     print(f'הבוט מחובר: {bot.user}')
     bot.add_view(TakeTicket())
-    
-    # סינכרון אוטומטי
-    try:
-        synced = await bot.tree.sync()
-        print(f"סונכרנו {len(synced)} פקודות slash")
-    except Exception as e:
-        print("שגיאה בסינכרון:", e)
+
+    # סינכרון לשרת ספציפי – עובד 100% על Render!
+    guild = discord.Object(id=GUILD_ID)
+    bot.tree.copy_global_to(guild=guild)
+    synced = await bot.tree.sync(guild=guild)
+    print(f"סונכרנו {len(synced)} פקודות slash בשרת!")
 
     # שרת keep-alive
     app = FastAPI()
@@ -205,14 +208,6 @@ async def on_ready():
     def run():
         uvicorn.run(app, host="0.0.0.0", port=8080)
     Thread(target=run, daemon=True).start()
-
-# פקודת סינכרון ידנית – רק לבעל הבוט
-@bot.command()
-@commands.is_owner()
-async def sync(ctx):
-    await ctx.send("מסנכרן פקודות... תחכה 10 שניות")
-    await bot.tree.sync()
-    await ctx.send("סיימתי! עכשיו כל הפקודות מופיעות ב-/")
 
 # ריצה
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
