@@ -217,5 +217,11 @@ async def on_ready():
     def run():
         uvicorn.run(app, host="0.0.0.0", port=8080)
     Thread(target=run, daemon=True).start()
-
+    
+# פקודה ל-sync ידני (רק לך – בעל הבוט)
+@bot.command()
+@commands.is_owner()
+async def sync(ctx):
+    await bot.tree.sync()
+    await ctx.send("הפקודות סונכרנו! עכשיו תראה את כל ה-slash commands")
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
