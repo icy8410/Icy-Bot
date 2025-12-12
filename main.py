@@ -27,6 +27,12 @@ THUMBNAIL_GIF = "https://cdn.discordapp.com/icons/1431291490596032636/a_fd742a2c
 # קובץ הגדרות
 CONFIG_FILE = 'config.json'
 
+# אם הקובץ config.json לא קיים – ניצור אותו אוטומטית
+if not os.path.exists(CONFIG_FILE):
+    default_config = {'drop_role_id': None, 'drop_allowed_channels': []}
+    save_config(default_config)
+    config = default_config
+
 def load_config():
     try:
         with open(CONFIG_FILE, 'r') as f:
